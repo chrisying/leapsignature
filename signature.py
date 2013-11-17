@@ -23,16 +23,35 @@ class SignatureListener(Leap.Listener):
 	xsav = []
 	ysav = []
 
-	#improve this!
+	def normalize(self, coords):
+		offset = coords[0]
+		for i in coords:
+			i -= offset
+		return coords
+
+	# Signature comparison algorithm (CRUDE)
 	def sigcomp(self):
-		if (abs(len(self.xcor) - len(self.xsav)) > 0.5 * len(self.xsav)):
+		if (abs(len(self.xcor) - len(self.xsav)) > 0.2 * len(self.xsav)):
 			return -1
-		dif = 0
+		if len(self.xcor) > 50:
+			self.xcor = self.xcor[20:-10]
+			self.ycor = self.ycor[20:-10]
+		if len(self.xsav) > 50:
+			self.xsav = self.xsav[20:-10]
+			self.ysav = self.ysav[20:-10]
+		self.xcor = self.normalize(self.xcor)
+		self.ycor = self.normalize(self.ycor)
+		self.xsav = self.normalize(self.xsav)
+		self.ysav = self.normalize(self.ysav)
+		diff = 0
 		ind = 0
 		while (ind < len(self.xcor) and ind < len(self.xsav)):
-			dif += abs(self.xcor[ind] - self.xsav[ind])
+			diff += abs(self.xcor[ind] - self.xsav[ind])
 			ind += 1
-		return dif
+		if len(self.xsav) != 0:
+			diff /= len(self.xsav)
+
+		return diff
 
 	def on_init(self, controller):
 		print "Initialized"
@@ -88,8 +107,17 @@ class SignatureListener(Leap.Listener):
 					elif self.state == 2:
 						print "Signature complete"
 						diff = self.sigcomp()
-						print diff
-						i = sys.stdin.readline()
+						print int(diff)
+						if diff > 50 or diff == -1:
+							print "You signature was not accepted, try again"
+							self.state = 3
+							self.wait = 0
+							self.noin = 0
+							self.xcor = []
+							self.ycor = []
+						else:
+							print "Signature was accepted"
+							raw_input()
 		if self.state == 3:
 			self.wait += 1
 			w = 5 - int(self.wait/40)
